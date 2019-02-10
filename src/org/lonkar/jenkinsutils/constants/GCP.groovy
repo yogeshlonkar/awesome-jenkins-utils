@@ -1,6 +1,10 @@
 package org.lonkar.jenkinsutils.constants;
 import java.io.Serializable;
 
+/**
+ * Google cloud platform constants for using in jenkins pipeline.
+ *
+ */
 class GCP implements Serializable {
   static def Regions = [
       "us-west1",

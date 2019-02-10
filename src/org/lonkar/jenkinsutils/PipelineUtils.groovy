@@ -5,6 +5,10 @@ import groovy.json.*
 import hudson.model.*
 import java.io.Serializable
 
+/**
+ * Common utilities for using in scripted pipeline
+ *
+ */
 class PipelineUtils implements Serializable {
 
     private static String CommonHeaderStyle = 'font-family: Roboto, sans-serif !important;text-align: center;margin-left: -250px;font-weight: bold;'
@@ -13,36 +17,78 @@ class PipelineUtils implements Serializable {
     private static String GlobalHeaderSuccessStyle = CommonHeaderStyle + 'background: #d4edda;color: #155724;'
     private static String GlobalHeaderInfoStyle = CommonHeaderStyle + 'background: #d1ecf1;color: #0c5460;'
 
-    def pipeline
-    def exceptionInBuild
+    private def pipeline
+    private def exceptionInBuild
+    private boolean hasAnsiSupport
+    private boolean disableAnsi;
 
-    PipelineUtils(pipeline) {
+    /**
+     * Instantiate PipelineUtils using WorkflowScript object
+     * @see <a href="https://github.com/jenkinsci/workflow-cps-plugin/blob/0e4c25f8d7b84470aa523491e29933db3b3df588/src/main/java/org/jenkinsci/plugins/workflow/cps/CpsScript.java">CpsScript.java</a>
+     *
+     * @param pipeline - WorkflowScript
+     */
+    PipelineUtils(pipeline, disableAnsi = false) {
         this.pipeline = pipeline
+        this.disableAnsi = disableAnsi
+        try {
+            Class.forName('hudson.plugins.ansicolor.AnsiColorBuildWrapper', false, pipeline.getClass().getClassLoader())
+            this.hasAnsiSupport = true
+        } catch (java.lang.ClassNotFoundException e) {
+            this.hasAnsiSupport = false
+        }
     }
 
+    /**
+     * A Stage that can be skipped based on execute condition.
+     * The stage is wrapped in AnsiColorBuildWrapper
+     *
+     * @param name of stage
+     * @param execute boolean flag
+     * @param block stage block code
+     * @return stage object
+     */
     def stage(name, execute, block) {
-        if (execute) {
-            return this.pipeline.wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                pipeline.echo new AnsiText().bold().a('Executing stage ').fgGreen().a(name).toString()
-                pipeline.stage(name, block)
-                pipeline.echo new AnsiText().bold().a('Stage ').fgGreen().a(name).fgBlack().a(' completed').toString()
+        if (hasAnsiSupport && !disableAnsi) {
+            if (execute) {
+                return this.pipeline.wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    pipeline.echo new AnsiText().bold().a('Executing stage ').fgGreen().a(name).toString()
+                    pipeline.stage(name, block)
+                    pipeline.echo new AnsiText().bold().a('Stage ').fgGreen().a(name).fgBlack().a(' completed').toString()
+                }
+            } else {
+                return this.pipeline.wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
+                    pipeline.stage(name, {
+                        pipeline.echo new AnsiText().bold().a('Skipped stage ').fgYellow().a(name).toString()
+                        Utils.markStageSkippedForConditional(name)
+                    })
+                }
             }
         } else {
-            return this.pipeline.wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
-                pipeline.stage(name, {
-                    pipeline.echo new AnsiText().bold().a('Skipped stage ').fgYellow().a(name).toString()
+            if (execute) {
+                return pipeline.stage(name, block)
+            } else {
+                return pipeline.stage(name, {
+                    pipeline.echo "Skipped stage ${name}"
                     Utils.markStageSkippedForConditional(name)
                 })
             }
         }
     }
 
-    def markExceptionInBuild() {
+    /**
+     * mark exception in build for sending failure notification with slack
+     */
+    def void markExceptionInBuild() {
         exceptionInBuild = true
     }
 
+    /**
+     * get the change log aggregated message in newline separated string
+     * @return aggregated change log
+     */
     @NonCPS
-    def getChangeLogMessage() {
+    def String getChangeLogMessage() {
         def changeLogSets = pipeline.currentBuild.changeSets
         def changeLogMessage = "${pipeline.currentBuild.changeSets.size()} Repository change(s)\n"
         def totalCommits = 0
@@ -60,25 +106,25 @@ class PipelineUtils implements Serializable {
         changeLogMessage += "${fileChanges} file change(s)\n"
         return changeLogMessage
     }
-    
+
     /**
-     * @param execute: boolean - if false slack notification is not send
-     * @param config {
-         buildStatus: optional string 
-         buildMessage: optional string
-         changeLogMessage?: optional string
-         channel?: optional string
-        }
+     * Send slack notification using slackSend required jenkins-slack-plugin
+     *
+     * @param execute boolean if false slack notification is not send
+     * @param config object
+     * @param config.buildStatus optional string expected values STARTED | SUCCESS | UNSTABLE | ABORTED | FAILURE
+     * @param config.buildMessage optional string to append header on slack message
+     * @param config.changeLogMessage?: optional string for custom change log message to attach
+     * @param config.channel?: optional string for sending notification to @individual or #group
      */
-    def slackIt(execute, config = [:]) {
+    def void slackIt(execute, config = [:]) {
         if (!execute) {
             return
         }
         if (!config.changeLogMessage) {
             config.changeLogMessage = this.getChangeLogMessage()
         }
-        println "pipeline.currentBuild -> " + pipeline.currentBuild
-        def buildStatus;
+        def buildStatus
         if (exceptionInBuild) {
             buildStatus = 'FAILURE'
         } else if (config.buildStatus){
@@ -109,7 +155,7 @@ class PipelineUtils implements Serializable {
                 colorCode = 'danger'
                 message = "Failed ${message}"
         }
-        def attachmenPayload = [[
+        def attachmentPayload = [[
             fallback: "${pipeline.env.JOB_NAME} execution #${pipeline.env.BUILD_NUMBER} - ${buildStatus}",
             author_link: "",
             author_icon: "",
@@ -123,55 +169,106 @@ class PipelineUtils implements Serializable {
                 ]
             ],
             footer: "<${pipeline.env.JENKINS_URL}| Jenkins>",
-            // footer_icon: "https://cdn.pbrd.co/images/HKfyRXl.png",
             ts: new Date().time / 1000
         ]]
         if (buildStatus == 'FAILURE') {
-            attachmenPayload[0].fields.add([  
+            attachmentPayload[0].fields.add([
                 title: "Change log",
                 value: "${config.changeLogMessage}\n<${pipeline.env.BUILD_URL}/changes| Details>",
                 short: false
             ])
         }
-        pipeline.slackSend(channel: config.channel, color: colorCode, attachments: new JsonBuilder(attachmenPayload).toPrettyString())
+        pipeline.slackSend(channel: config.channel, color: colorCode, attachments: new JsonBuilder(attachmentPayload).toPrettyString())
     }
 
-    def workspaceRootPath() {
+    /**
+     * get root workspace of job. Generally /var/lib/jenkins/jobs/JOB_NAME/workspace
+     *
+     * @return workspace root path
+     */
+    def String workspaceRootPath() {
         return pipeline.pwd().replaceFirst(/(.*workspace)@?.*/)
     }
 
-    def workspaceSciptPath() {
+    /**
+     * get Jenkinsfile script path. . Generally /var/lib/jenkins/jobs/JOB_NAME/workspace@script
+     *
+     * @return workspace script path
+     */
+    def String workspaceScriptPath() {
         return pipeline.pwd().replaceFirst(/(.*workspace)@?.*/, '$1@script')
     }
 
-    def successParamSeperator(sectionHeader) {
-        return this.paramSeperator(sectionHeader, GlobalSeparatorStyle, GlobalHeaderSuccessStyle)
+    /**
+     * Create and <hr /> tag to differentiate sets of parameters or group them as bootstrap-4 SUCCESS styling
+     * Requires <a href="https://plugins.jenkins.io/parameter-separator">Parameter Separator</a>
+     *
+     * @param sectionHeader string or param group name
+     * @return Parameter
+     */
+    def successParamSeparator(sectionHeader) {
+        return this.paramSeparator(sectionHeader, GlobalSeparatorStyle, GlobalHeaderSuccessStyle)
     }
 
-    def dangerParamSeperator(sectionHeader) {
-        return this.paramSeperator(sectionHeader, GlobalSeparatorStyle, GlobalHeaderDangerStyle)
+    /**
+     * Create and <hr /> tag to differentiate sets of parameters or group them as bootstrap-4 DANGER styling
+     * Requires <a href="https://plugins.jenkins.io/parameter-separator">Parameter Separator</a>
+     *
+     * @param sectionHeader string or param group name
+     * @return Parameter
+     */
+    def dangerParamSeparator(sectionHeader) {
+        return this.paramSeparator(sectionHeader, GlobalSeparatorStyle, GlobalHeaderDangerStyle)
     }
 
-    def infoParamSeperator(sectionHeader) {
-        return this.paramSeperator(sectionHeader, GlobalSeparatorStyle, GlobalHeaderInfoStyle)
+    /**
+     * Create and <hr /> tag to differentiate sets of parameters or group them as bootstrap-4 INFO styling
+     * Requires <a href="https://plugins.jenkins.io/parameter-separator">Parameter Separator</a>
+     *
+     * @param sectionHeader string or param group name
+     * @return Parameter
+     */
+    def infoParamSeparator(sectionHeader) {
+        return this.paramSeparator(sectionHeader, GlobalSeparatorStyle, GlobalHeaderInfoStyle)
     }
 
-    def paramSeperator(sectionHeader, separatorStyle, sectionHeaderStyle) {
+    /**
+     * Create and <hr /> tag to differentiate sets of parameters or group them on build parameter page
+     * Requires <a href="https://plugins.jenkins.io/parameter-separator">Parameter Separator</a>
+     *
+     * @param sectionHeader string or param group name
+     * @param separatorStyle string for separator CSS style
+     * @param sectionHeaderStyle string containing CSS style for section header
+     * @return Parameter
+     */
+    def paramSeparator(sectionHeader, separatorStyle, sectionHeaderStyle) {
         return [ 
             $class: 'ParameterSeparatorDefinition',
-            name: 'seperator_section',
+            name: 'separator_section',
             sectionHeader: sectionHeader,
             separatorStyle: separatorStyle,
             sectionHeaderStyle: sectionHeaderStyle
         ]
     }
 
+    /**
+     * Get JSON pretty string of object
+     *
+     * @param obj to stringify
+     * @return json string
+     */
     @NonCPS
-    def jsonPrettyString(obj) {
+    def String jsonPrettyString(obj) {
         return new JsonBuilder(obj).toPrettyString()
     }
 
-    def currentArchitecure() {
+
+    /**
+     * Get current node/slaves Operating system Architecture
+     *
+     * @return possible values for *nix amd64 | i386 | arm For windows 32 | 64
+     */
+    def String currentArchitecture() {
         if (pipeline.isUnix()) {
             def arch = this.silentBash(script: 'uname -m', returnStdout: true).trim()
             if (arch == 'x86_64') {
@@ -189,7 +286,12 @@ class PipelineUtils implements Serializable {
         }
     }
 
-    def currentOS() {
+    /**
+     * Get current os
+     *
+     * @return possible values darwin | freebsd | openbsd | solaris | linux | windows
+     */
+    def String currentOS() {
         if (pipeline.isUnix()) {
             def uname = this.silentBash(script: 'uname', returnStdout: true).trim()
             if (uname.startsWith('Darwin')) {
@@ -208,6 +310,12 @@ class PipelineUtils implements Serializable {
         }
     }
 
+    /**
+     * Don't log bash commands in build while executing
+     *
+     * @param args string or arguments similar to https://jenkins.io/doc/pipeline/steps/workflow-durable-task-step/#sh-shell-script
+     * @return
+     */
     def silentBash(args) {
         def shArgs = [:]
         if (args instanceof Map) {

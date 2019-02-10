@@ -11,25 +11,39 @@ import org.jenkinsci.plugins.structs.*
 import com.cloudbees.jenkins.plugins.customtools.*
 import com.synopsys.arc.jenkinsci.plugins.customtools.versions.*
 
+
+/**
+ * Helm Helper to install and setup helm in PATH variable using targeted binaries
+ * from HELM release repository
+ *
+ */
 class HelmHelper implements Serializable {
 
-    def pipeline
-    def utils
+    private def pipeline
+    private def utils
 
+    /**
+     * Instantiate HelmHelper using WorkflowScript object
+     * @see <a href="https://github.com/jenkinsci/workflow-cps-plugin/blob/0e4c25f8d7b84470aa523491e29933db3b3df588/src/main/java/org/jenkinsci/plugins/workflow/cps/CpsScript.java">CpsScript.java</a>
+     *
+     * @param pipeline - WorkflowScript
+     */
     HelmHelper(pipeline) {
         this.pipeline = pipeline
         this.utils = new PipelineUtils(pipeline)
     }
 
     /**
-     * Installs terraform if not exists already from CustomTool and add it to path
+     * Installs terraform if not exists already using CustomTool and adds it to PATH
+     *
+     * @param version of terraform to use
      */
     def use(version = '2.12.3') {
         if (!(version ==~ /^v.*$/)) {
             version = "v${version}" 
         }
         def os = utils.currentOS()
-        def arch = utils.currentArchitecure().replace('i','')
+        def arch = utils.currentArchitecture().replace('i','')
         def extension = pipeline.isUnix() ? 'tar.gz' : 'zip'
         def helmVersionPath = "${pipeline.env.JENKINS_HOME}/tools/helm/${version}/${os}-${arch}"
         List<InstallSourceProperty> properties = [

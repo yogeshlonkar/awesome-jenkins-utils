@@ -11,18 +11,30 @@ import org.jenkinsci.plugins.structs.*
 import com.cloudbees.jenkins.plugins.customtools.*
 import com.synopsys.arc.jenkinsci.plugins.customtools.versions.*
 
+/**
+ * Kubectl Helper to install and setup Kubectl in PATH variable using targeted binaries
+ *
+ */
 class KubectlHelper implements Serializable {
 
-    def pipeline
-    def utils
+    private def pipeline
+    private def utils
 
+    /**
+     * Instantiate KubectlHelper using WorkflowScript object
+     * @see <a href="https://github.com/jenkinsci/workflow-cps-plugin/blob/0e4c25f8d7b84470aa523491e29933db3b3df588/src/main/java/org/jenkinsci/plugins/workflow/cps/CpsScript.java">CpsScript.java</a>
+     *
+     * @param pipeline - WorkflowScript
+     */
     KubectlHelper(pipeline) {
         this.pipeline = pipeline
         this.utils = new PipelineUtils(pipeline)
     }
 
     /**
-     * Installs terraform if not exists already from CustomTool and add it to path
+     * Installs kubectl if not exists already using bash/bat and add it to path
+     *
+     * @param version of kubectl to use
      */
     def use(version = false) {
         if (!version && pipeline.isUnix()) {
