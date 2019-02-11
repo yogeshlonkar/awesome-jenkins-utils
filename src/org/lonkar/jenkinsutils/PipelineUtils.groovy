@@ -16,6 +16,7 @@ class PipelineUtils implements Serializable {
     private static String GlobalHeaderDangerStyle = CommonHeaderStyle + 'background: #f8d7da;color: #721c24;'
     private static String GlobalHeaderSuccessStyle = CommonHeaderStyle + 'background: #d4edda;color: #155724;'
     private static String GlobalHeaderInfoStyle = CommonHeaderStyle + 'background: #d1ecf1;color: #0c5460;'
+    private static String GlobalHeaderSecondaryStyle = CommonHeaderStyle + 'background: #ccc;color: #000;'
 
     private def pipeline
     private def exceptionInBuild
@@ -230,6 +231,17 @@ class PipelineUtils implements Serializable {
      */
     def infoParamSeparator(sectionHeader) {
         return this.paramSeparator(sectionHeader, GlobalSeparatorStyle, GlobalHeaderInfoStyle)
+    }
+
+    /**
+     * Create and <hr /> tag to differentiate sets of parameters or group them as bootstrap-4 SECONDARY styling
+     * Requires <a href="https://plugins.jenkins.io/parameter-separator">Parameter Separator</a>
+     *
+     * @param sectionHeader string or param group name
+     * @return Parameter
+     */
+    def infoParamSeparator(sectionHeader) {
+        return this.paramSeparator(sectionHeader, GlobalSeparatorStyle, GlobalHeaderSecondaryStyle)
     }
 
     /**

@@ -13,22 +13,22 @@ import com.synopsys.arc.jenkinsci.plugins.customtools.versions.*
 
 
 /**
- * Helm Helper to install and setup helm in PATH variable using targeted binaries
- * from HELM release repository
+ * Gcloud Helper to install and setup gcloud in PATH variable using targeted binaries
+ * from gcloud versioned archives
  *
  */
-class HelmHelper implements Serializable {
+class GcloudHelper implements Serializable {
 
     private def pipeline
     private def utils
 
     /**
-     * Instantiate HelmHelper using WorkflowScript object
+     * Instantiate GcloudHelper using WorkflowScript object
      * @see <a href="https://github.com/jenkinsci/workflow-cps-plugin/blob/0e4c25f8d7b84470aa523491e29933db3b3df588/src/main/java/org/jenkinsci/plugins/workflow/cps/CpsScript.java">CpsScript.java</a>
      *
      * @param pipeline - WorkflowScript
      */
-    HelmHelper(pipeline) {
+    GcloudHelper(pipeline) {
         this.pipeline = pipeline
         this.utils = new PipelineUtils(pipeline)
     }
@@ -38,24 +38,25 @@ class HelmHelper implements Serializable {
      *
      * @param version of terraform to use
      */
-    def use(version = '2.12.3') {
-        if (!(version ==~ /^v.*$/)) {
-            version = "v${version}" 
-        }
+    def use(version = '233.0.0') {
         def os = utils.currentOS()
         def arch = utils.currentArchitecture().replace('i','')
-        def extension = pipeline.isUnix() ? 'tar.gz' : 'zip'
-        def helmVersionPath = "${pipeline.env.JENKINS_HOME}/tools/helm/${version}"
+        if (arch == 'amd64') {
+            arch = 'x86_64'
+        }
+        def extension = pipeline.isUnix() ? '.tar.gz' : 'bundled-python.zip'
+        def gcloudVersionPath = "${pipeline.env.JENKINS_HOME}/tools/gcloud/${version}"
         List<InstallSourceProperty> properties = [
             new InstallSourceProperty([
-                new ZipExtractionInstaller(null, "https://storage.googleapis.com/kubernetes-helm/helm-${version}-${os}-${arch}.${extension}", "${helmVersionPath}/${os}-${arch}")
+                new ZipExtractionInstaller(null, "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${version}-${os}-${arch}${extension}", "${gcloudVersionPath}/google-cloud-sdk/bin/")
             ].toList())
         ].toList()
-        def tool = new CustomTool("helm.${version}", helmVersionPath, properties, '', null, ToolVersionConfig.DEFAULT, null)
+
+        def tool = new CustomTool("gcloud.${version}", gcloudVersionPath, properties, '', null, ToolVersionConfig.DEFAULT, null)
         def currNode = pipeline.getContext Node.class
         def currListener = pipeline.getContext TaskListener.class
-        def helmPath = tool.forNode(currNode, currListener).getHome()
-        pipeline.env.PATH = "${helmPath}:${pipeline.env.PATH}"
-        pipeline.echo "using helm ${version}"
+        def gcloudPath = tool.forNode(currNode, currListener).getHome()
+        pipeline.env.PATH = "${gcloudPath}:${pipeline.env.PATH}"
+        pipeline.echo "using gcloud ${version}"
     }
 }
