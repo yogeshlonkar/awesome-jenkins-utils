@@ -111,14 +111,27 @@ class PipelineUtils implements Serializable {
     /**
      * Send slack notification using slackSend required jenkins-slack-plugin
      *
-     * @param execute boolean if false slack notification is not send
      * @param config object
-     * @param config.buildStatus optional string expected values STARTED | SUCCESS | UNSTABLE | ABORTED | FAILURE
+     * @param config.buildStatus optional string expected values STARTED | SUCCESS | UNSTABLE | ABORTED | FAILURE | PROGRESS
      * @param config.buildMessage optional string to append header on slack message
      * @param config.changeLogMessage?: optional string for custom change log message to attach
      * @param config.channel?: optional string for sending notification to @individual or #group
      */
-    def void slackIt(execute, config = [:]) {
+    def void slackIt(config) {
+        this.slackIt(true, config)
+    }
+
+    /**
+     * Send slack notification using slackSend required jenkins-slack-plugin
+     *
+     * @param execute boolean if false slack notification is not send
+     * @param config object
+     * @param config.buildStatus optional string expected values STARTED | SUCCESS | UNSTABLE | ABORTED | FAILURE | PROGRESS
+     * @param config.buildMessage optional string to append header on slack message
+     * @param config.changeLogMessage?: optional string for custom change log message to attach
+     * @param config.channel?: optional string for sending notification to @individual or #group
+     */
+    def void slackIt(execute = true, config = [:]) {
         if (!execute) {
             return
         }
