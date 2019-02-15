@@ -188,7 +188,7 @@ class PipelineUtils implements Serializable {
      * @return workspace root path
      */
     def String workspaceRootPath() {
-        return pipeline.pwd().replaceFirst(/(.*workspace)@?.*/)
+        return pipeline.pwd().replaceFirst(/(.*workspace)@?.*/, '$1')
     }
 
     /**
