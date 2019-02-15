@@ -140,6 +140,10 @@ class PipelineUtils implements Serializable {
                 message = "${pipeline.currentBuild.rawBuild.getCauses().get(0).getShortDescription()}"
                 colorCode = '#ccc'
                 break
+            case 'PROGRESS':
+                message = "In-progress ${message}"
+                colorCode = '#007bff'
+                break
             case 'SUCCESS':
                 message = "Success ${message}"
                 colorCode = 'good'
@@ -153,6 +157,7 @@ class PipelineUtils implements Serializable {
                 colorCode = '#ccc'
                 break
             default:
+                buildStatus = 'FAILURE'
                 colorCode = 'danger'
                 message = "Failed ${message}"
         }
