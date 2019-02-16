@@ -258,7 +258,7 @@ class PipelineUtils implements Serializable {
      * @param sectionHeader string or param group name
      * @return Parameter
      */
-    def infoParamSeparator(sectionHeader) {
+    def secondaryParamSeparator(sectionHeader) {
         return this.paramSeparator(sectionHeader, GlobalSeparatorStyle, GlobalHeaderSecondaryStyle)
     }
 
