@@ -11,7 +11,7 @@ import java.io.Serializable
  */
 class PipelineUtils implements Serializable {
 
-    private static String CommonHeaderStyle = 'font-family: Roboto, sans-serif !important;text-align: center;margin-left: -250px;font-weight: bold;'
+    private static String CommonHeaderStyle = 'font-family: Roboto, sans-serif !important;text-align: center;margin: 10px 0 0;font-weight: bold;'
     private static String GlobalSeparatorStyle = 'display: none;'
     private static String GlobalHeaderDangerStyle = CommonHeaderStyle + 'background: #f8d7da;color: #721c24;'
     private static String GlobalHeaderSuccessStyle = CommonHeaderStyle + 'background: #d4edda;color: #155724;'
