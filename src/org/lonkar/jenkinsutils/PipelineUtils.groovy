@@ -130,7 +130,7 @@ class PipelineUtils implements Serializable {
      * @param config.buildMessage optional string to append header on slack message
      * @param config.changeLogMessage?: optional string for custom change log message to attach
      * @param config.channel?: optional string for sending notification to @individual or #group
-     * @param config.extraAttachements optional array of attachment object refer https://api.slack.com/docs/interactive-message-field-guide#attachment_fields
+     * @param config.extraAttachements optional array of attachment object refer https://api.slack.com/docs/message-attachments#fields
      */
     def void slackIt(execute = true, config = [:]) {
         if (!execute) {
