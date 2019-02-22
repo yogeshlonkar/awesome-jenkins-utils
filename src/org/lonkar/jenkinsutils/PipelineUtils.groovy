@@ -191,7 +191,8 @@ class PipelineUtils implements Serializable {
             footer: "<${pipeline.env.JENKINS_URL}| Jenkins>",
             ts: new Date().time / 1000
         ]]
-        if (buildStatus == 'FAILURE') {
+        def totalCommits =  pipeline.currentBuild.changeSets.size()
+        if (buildStatus == 'FAILURE' && totalCommits > 0) {
             attachmentPayload[0].fields.add([
                 title: "Change log",
                 value: "${config.changeLogMessage}\n<${pipeline.env.BUILD_URL}/changes| Details>",
