@@ -49,7 +49,7 @@ class PipelineUtils implements Serializable {
      * @param block stage block code
      * @return stage object
      */
-    def stage(name, execute, block) {
+    def stage(name, boolean execute = true, block) {
         if (hasAnsiSupport && !disableAnsi) {
             if (execute) {
                 return this.pipeline.wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'xterm']) {
@@ -132,7 +132,7 @@ class PipelineUtils implements Serializable {
      * @param config.channel?: optional string for sending notification to @individual or #group
      * @param config.extraAttachements optional array of attachment object refer https://api.slack.com/docs/message-attachments#fields
      */
-    def void slackIt(execute = true, config = [:]) {
+    def void slackIt(boolean execute = true, config = [:]) {
         if (!execute) {
             return
         }
